@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'Login.dart';
@@ -6,6 +7,7 @@ import 'showMap.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // must be first!
+  usePathUrlStrategy(); // for web, to remove the # from the URL
 
   await Supabase.initialize(
     url: 'https://virccuuftyhsgxajexds.supabase.co',

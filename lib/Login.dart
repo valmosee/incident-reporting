@@ -83,28 +83,6 @@ class _LoginState extends State<Login> {
     }
   }
 
-  Future<void> evtlogin(String email, String password) async {
-    print("start login");
-
-    try {
-      final response = await supabase.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
-
-      print("response: $response");
-
-      if (response.session != null) {
-        print("Login berhasil");
-        print("User: ${response.user?.email}");
-      } else {
-        print("Login gagal (session null)");
-      }
-    } catch (e) {
-      print("ERROR LOGIN: $e");
-    }
-  }
-
   Future<void> evtregister(String email, String password) async {
     print("start register");
 
@@ -220,7 +198,7 @@ class _LoginState extends State<Login> {
                   child: ElevatedButton(
                     onPressed: _loading
                         ? null
-                        : () => evtlogin(_emailCtrl.text, _passCtrl.text),
+                        : () => _login(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1A5CFF),
                       shape: RoundedRectangleBorder(
@@ -420,7 +398,7 @@ class _LoginState extends State<Login> {
                 child: ElevatedButton(
                   onPressed: _loading
                       ? null
-                      : () => evtlogin(_emailCtrl.text, _passCtrl.text),
+                      : () => _login(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A5CFF),
                     shape: RoundedRectangleBorder(
