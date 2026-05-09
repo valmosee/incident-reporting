@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:kelompokc_incidentreporting/showMap.dart';
+import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'Login.dart';
@@ -7,12 +7,15 @@ import 'showMap.dart';
 import 'createReport.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized(); // must be first!
+  usePathUrlStrategy(); // for web, to remove the # from the URL
+
   await Supabase.initialize(
     url: 'https://virccuuftyhsgxajexds.supabase.co',
     anonKey: 'sb_publishable__VJYd1XnI8lmgIbVoXLKZQ_YqhNpqAF',
   );
 
-  runApp(MaterialApp(title: 'AMBW', home: MyApp()));
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -24,13 +27,10 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'AMBW',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: CreateReport(),
-      initialRoute: '/CreateReport',
-      routes: {
-        '/login': (context) => Login(),
-        '/Showmap': (context) => Showmap(),
-        '/CreateReport': (context) => CreateReport(),
-      },
+      home: const Login(),
+      routes: {'/map': (context) => Showmap(),
+               '/login': (context) => Login()},
+               '/CreateReport': (context) => CreateReport(),
     );
   }
 }
