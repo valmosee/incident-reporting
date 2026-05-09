@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'Login.dart';
 import 'showMap.dart';
+import 'createReport.dart';
 
 void main() async {
   await Supabase.initialize(
@@ -23,9 +24,13 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'AMBW',
       theme: ThemeData(primarySwatch: Colors.blue),
-      // initialRoute: '/',
-      // routes: {'/': (context) => Login()},
-      home: Showmap(),
+      home: CreateReport(),
+      initialRoute: '/CreateReport',
+      routes: {
+        '/login': (context) => Login(),
+        '/Showmap': (context) => Showmap(),
+        '/CreateReport': (context) => CreateReport(),
+      },
     );
   }
 }
