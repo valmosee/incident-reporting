@@ -1,6 +1,11 @@
+import 'dart:io';
+import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:geocoding/geocoding.dart';
 
 class CreateReport extends StatefulWidget {
   const CreateReport({super.key});
@@ -22,26 +27,171 @@ class _CreateReportState extends State<CreateReport> {
   bool _submitting = false;
 
   Future<void> _pilihFile() async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      type: FileType.custom,
-      withData: true,
-      allowedExtensions: ['jpg', 'jpeg', 'png', 'mp4', 'mov', 'avi'],
-    );
-    if (result == null || result.files.isEmpty) return;
-    setState(() => _resultFile = result);
+    if (kIsWeb) {
+      // WEB: file_picker biasa, withData: true wajib karena tidak ada path
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        withData: true,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'mp4', 'mov', 'avi'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      setState(() => _resultFile = result);
+    } else if (Platform.isAndroid || Platform.isIOS) {
+      // MOBILE: bisa pakai path atau bytes
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        withData: false,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'mp4', 'mov', 'avi'],
+      );
+      if (result == null || result.files.isEmpty) return;
+      setState(() => _resultFile = result);
+    }
   }
 
   Future<void> _getCurrentLocation() async {
     setState(() => _loadingLocation = true);
+
     // TODO: implement geolocator
-    await Future.delayed(const Duration(seconds: 1));
-    setState(() {
-      _lat = -7.2937;
-      _lng = 112.7313;
-      _addressCtrl.text = 'Jl. Contoh No. 1';
-      _loadingLocation = false;
-    });
+    try {
+      // 1. Cek apakah location service aktif
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Aktifkan GPS / Location Service terlebih dahulu'),
+            ),
+          );
+        }
+        return;
+      }
+
+      // 2. Cek & minta permission (berbeda behavior per platform)
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Izin lokasi ditolak')),
+            );
+          }
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Izin lokasi diblokir permanen. Buka pengaturan untuk mengaktifkan.',
+              ),
+              action: SnackBarAction(
+                label: 'Buka',
+                onPressed: () => Geolocator.openAppSettings(),
+              ),
+            ),
+          );
+        }
+        return;
+      }
+
+      // 3. Ambil posisi — setting akurasi berbeda per platform
+      Position position;
+
+      if (kIsWeb) {
+        // WEB: tidak support high accuracy terlalu sering, pakai best effort
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 5),
+          ),
+        );
+      } else if (Platform.isAndroid) {
+        // ANDROID: bisa pakai AndroidSettings dengan forceLocationManager
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: AndroidSettings(
+            accuracy: LocationAccuracy.high,
+            forceLocationManager:
+                false, // pakai FusedLocationProvider (lebih akurat)
+            timeLimit: const Duration(seconds: 5),
+          ),
+        );
+      } else if (Platform.isIOS) {
+        // IOS: pakai AppleSettings dengan activityType
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: AppleSettings(
+            accuracy: LocationAccuracy.high,
+            activityType: ActivityType.other,
+            timeLimit: const Duration(seconds: 5),
+            pauseLocationUpdatesAutomatically: false,
+          ),
+        );
+      } else {
+        // Fallback platform lain (desktop, dll)
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+          ),
+        );
+      }
+
+      _lat = position.latitude;
+      _lng = position.longitude;
+
+      // 4. Reverse geocoding — web tidak support geocoding package,
+      //    pakai koordinat langsung sebagai fallback
+      if (kIsWeb) {
+        _addressCtrl.text =
+            '${position.latitude.toStringAsFixed(5)}, '
+            '${position.longitude.toStringAsFixed(5)}';
+      } else {
+        // Android & iOS: reverse geocode ke alamat
+        try {
+          final placemarks = await placemarkFromCoordinates(
+            position.latitude,
+            position.longitude,
+          );
+
+          if (placemarks.isNotEmpty) {
+            final p = placemarks.first;
+            final parts = [
+              p.street,
+              p.subLocality,
+              p.locality,
+              p.subAdministrativeArea,
+            ].where((e) => e != null && e.isNotEmpty).join(', ');
+
+            _addressCtrl.text = parts.isNotEmpty
+                ? parts
+                : '${position.latitude}, ${position.longitude}';
+          }
+        } catch (e) {
+          // Geocoding gagal, fallback ke koordinat — lat/lng tetap tersimpan
+          _addressCtrl.text = '${position.latitude}, ${position.longitude}';
+        }
+      }
+
+      // setState hanya untuk rebuild UI
+      if (mounted) setState(() {});
+    } on TimeoutException {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Timeout: GPS terlalu lama merespons')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal mendapatkan lokasi: $e')));
+      }
+    } finally {
+      setState(() => _loadingLocation = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -58,15 +208,30 @@ class _CreateReportState extends State<CreateReport> {
       final List<String> uploadedUrls = [];
       if (_resultFile != null) {
         for (final pickedFile in _resultFile!.files) {
-          final bytes = pickedFile.bytes;
-          if (bytes == null) continue;
-
+          // nama file
           final fileName =
-              '${DateTime.now().millisecondsSinceEpoch}_${pickedFile.name}';
+              DateTime.now().millisecondsSinceEpoch.toString() +
+              "." +
+              pickedFile.extension.toString();
 
-          await Supabase.instance.client.storage
-              .from('event_report')
-              .uploadBinary(fileName, bytes);
+          if (kIsWeb) {
+            // WEB: wajib pakai bytes
+            final bytes = pickedFile.bytes;
+            if (bytes == null) continue;
+
+            await Supabase.instance.client.storage
+                .from('event_report')
+                .uploadBinary(fileName, bytes);
+          } else if (Platform.isAndroid || Platform.isIOS) {
+            // MOBILE: bisa pakai path
+            final path = pickedFile.path;
+            if (path == null) continue;
+
+            final file = File(path);
+            await Supabase.instance.client.storage
+                .from('event_report')
+                .upload(fileName, file);
+          }
 
           final url = Supabase.instance.client.storage
               .from('event_report')
@@ -87,8 +252,6 @@ class _CreateReportState extends State<CreateReport> {
         'status': 'pending',
         'qr_code': DateTime.now().millisecondsSinceEpoch.toString(),
       });
-
-      await Future.delayed(const Duration(seconds: 1));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
