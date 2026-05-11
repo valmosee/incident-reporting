@@ -24,8 +24,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'AMBW',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: CreateReport(),
-      initialRoute: '/CreateReport',
+      home: Login(),
+      initialRoute: '/login',
       routes: {
         '/login': (context) => Login(),
         '/Showmap': (context) => Showmap(),
