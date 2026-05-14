@@ -42,7 +42,7 @@ class _LoginState extends State<Login> {
       } else if (role == 'worker') {
         Navigator.pushReplacementNamed(context, '/worker');
       } else {
-        Navigator.pushReplacementNamed(context, '/map');
+        Navigator.pushReplacementNamed(context, '/createReport');
       }
     } catch (e) {
       if (!mounted) return;
@@ -197,9 +197,7 @@ class _LoginState extends State<Login> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _loading
-                        ? null
-                        : () => _login(),
+                    onPressed: _loading ? null : () => _login(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1A5CFF),
                       shape: RoundedRectangleBorder(
@@ -397,9 +395,7 @@ class _LoginState extends State<Login> {
                 width: double.infinity,
                 height: 44,
                 child: ElevatedButton(
-                  onPressed: _loading
-                      ? null
-                      : () => _login(),
+                  onPressed: _loading ? null : () => _login(),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1A5CFF),
                     shape: RoundedRectangleBorder(

@@ -28,9 +28,11 @@ class MyApp extends StatelessWidget {
       title: 'AMBW',
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const Login(),
-      routes: {'/map': (context) => Showmap(),
-               '/login': (context) => Login()},
-               '/CreateReport': (context) => CreateReport(),
+      routes: {
+        '/map': (context) => Showmap(),
+        '/login': (context) => Login(),
+        '/createReport': (context) => CreateReport(),
+      },
     );
   }
 }
