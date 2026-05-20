@@ -4,11 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'login.dart';
 import 'showMap.dart';
-<<<<<<< HalamanAutentikasi
 import 'auth.dart';
-=======
 import 'createReport.dart';
->>>>>>> main
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // must be first!
@@ -33,8 +30,9 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(primarySwatch: Colors.blue),
       home: const AuthGate(),
       routes: {'/map': (context) => Showmap(),
-               '/login': (context) => Login()},
-               '/CreateReport': (context) => CreateReport(),
+               '/login': (context) => Login(),
+               '/CreateReport': (context) => CreateReport()
+      },
     );
   }
 }
