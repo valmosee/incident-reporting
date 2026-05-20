@@ -1,5 +1,3 @@
-// ignore_for_file: file_names, prefer_const_constructors, no_leading_underscores_for_local_identifiers, use_key_in_widget_constructors, must_be_immutable, no_logic_in_create_state, override_on_non_overriding_member, unused_field, unused_element, sort_child_properties_last, avoid_print
-
 import 'package:flutter/material.dart';
 import 'package:kelompokc_incidentreporting/createReport.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -58,34 +56,41 @@ class _LoginState extends State<Login> {
   void initState() {
     super.initState();
 
-    if (Supabase.instance.client.auth.currentUser != null) {
-      print("sudah login");
-      final session = Supabase.instance.client.auth.currentSession;
-      print("Access Token: ${session!.accessToken}");
-      print("Refresh Token: ${session.refreshToken}");
-      print("Expires At: ${session.expiresAt}");
-      print("Token Type: ${session.tokenType}");
-
-      final user = session.user;
-      print("User ID: ${user.id}");
-      print("Email: ${user.email}");
-    } else {
-      print("belum login");
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session != null && mounted) {
+      final profile = await Supabase.instance.client
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+      
+      final role = profile['role'];
+      if (!mounted) return;
+      
+      if (role == 'admin') {
+        Navigator.pushReplacementNamed(context, '/admin');
+      } else if (role == 'worker') {
+        Navigator.pushReplacementNamed(context, '/worker');
+      } else {
+        Navigator.pushReplacementNamed(context, '/map');
+      }
     }
+  });
   }
 
   Future<void> evtlogout(BuildContext context) async {
     try {
       await Supabase.instance.client.auth.signOut();
 
-      print("Logout berhasil");
+      debugPrint("Logout berhasil");
     } catch (e) {
-      print("ERROR LOGOUT: $e");
+      debugPrint("ERROR LOGOUT: $e");
     }
   }
 
   Future<void> evtregister(String email, String password) async {
-    print("start register");
+    debugPrint("start register");
 
     try {
       final response = await supabase.auth.signUp(
@@ -94,15 +99,15 @@ class _LoginState extends State<Login> {
         data: {'display_name': "-", 'phone': '-', 'provider_type': 'user'},
       );
 
-      print("response: $response");
+      debugPrint("response: $response");
 
       if (response.user != null) {
-        print('Register berhasil');
+        debugPrint('Register berhasil');
       } else {
-        print("Register gagal");
+        debugPrint("Register gagal");
       }
     } catch (e) {
-      print("ERROR REGISTER: $e");
+      debugPrint("ERROR REGISTER: $e");
     }
   }
 

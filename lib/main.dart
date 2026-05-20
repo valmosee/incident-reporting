@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'Login.dart';
+import 'login.dart';
 import 'showMap.dart';
+<<<<<<< HalamanAutentikasi
+import 'auth.dart';
+=======
 import 'createReport.dart';
+>>>>>>> main
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // must be first!
@@ -27,7 +31,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'AMBW',
       theme: ThemeData(primarySwatch: Colors.blue),
-      home: const Login(),
+      home: const AuthGate(),
       routes: {'/map': (context) => Showmap(),
                '/login': (context) => Login()},
                '/CreateReport': (context) => CreateReport(),
