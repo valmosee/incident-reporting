@@ -4,8 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'showMap.dart';
-import 'global.dart' as global;
+import '../showMap.dart';
+import '../global.dart' as global;
 
 class CreateReport extends StatefulWidget {
   const CreateReport({super.key});

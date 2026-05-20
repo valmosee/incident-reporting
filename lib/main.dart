@@ -4,7 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'Login.dart';
 import 'showMap.dart';
-import 'createReport.dart';
+import 'user-side/createReport.dart';
+import 'user-side/dashboardUser.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // must be first!
@@ -32,6 +33,7 @@ class MyApp extends StatelessWidget {
         '/map': (context) => Showmap(),
         '/login': (context) => Login(),
         '/createReport': (context) => CreateReport(),
+        '/dashboardUser': (context) => DashboardUser(),
       },
     );
   }
