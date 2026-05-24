@@ -7,6 +7,7 @@ import 'showMap.dart';
 import 'user-side/createReport.dart';
 import 'user-side/dashboardUser.dart';
 
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // must be first!
   usePathUrlStrategy(); // for web, to remove the # from the URL
@@ -34,6 +35,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => Login(),
         '/createReport': (context) => CreateReport(),
         '/dashboardUser': (context) => DashboardUser(),
+        '/userHistoryReport': (context) => DashboardUser(),
       },
     );
   }

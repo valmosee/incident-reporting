@@ -103,6 +103,7 @@ class _CreateReportState extends State<CreateReport> {
       }
 
       await Supabase.instance.client.from('reports').insert({
+        'user_id': Supabase.instance.client.auth.currentUser!.id,
         'title': _titleCtrl.text,
         'description': _descCtrl.text,
         'jenis': _selectedJenis ?? 'kerusakan',
