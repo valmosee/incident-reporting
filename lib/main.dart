@@ -6,7 +6,7 @@ import 'Login.dart';
 import 'showMap.dart';
 import 'user-side/createReport.dart';
 import 'user-side/dashboardUser.dart';
-
+import 'user-side/historyReport.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // must be first!
@@ -35,7 +35,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => Login(),
         '/createReport': (context) => CreateReport(),
         '/dashboardUser': (context) => DashboardUser(),
-        '/userHistoryReport': (context) => DashboardUser(),
+        '/userHistoryReport': (context) => HistoryReport(),
       },
     );
   }

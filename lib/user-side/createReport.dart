@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../showMap.dart';
 import '../global.dart' as global;
+import '../app_colors.dart';
+import '../app_widgets.dart';
 
 class CreateReport extends StatefulWidget {
   const CreateReport({super.key});
@@ -23,6 +25,7 @@ class _CreateReportState extends State<CreateReport> {
   String? _selectedJenis;
   bool _submitting = false;
 
+  // ── Pilih file ────────────────────────────────────────────────────────────
   Future<void> _pilihFile() async {
     if (kIsWeb) {
       final result = await FilePicker.platform.pickFiles(
@@ -45,9 +48,8 @@ class _CreateReportState extends State<CreateReport> {
     }
   }
 
-  // ── Buka halaman peta, tunggu hasil pilihan ───────────────────────────────
+  // ── Pilih lokasi via peta ──────────────────────────────────────────────────
   void _pilihlokasi() async {
-    // Reset global sebelum buka peta
     global.lokasi = '';
     global.latitude = 0;
     global.longitude = 0;
@@ -57,14 +59,12 @@ class _CreateReportState extends State<CreateReport> {
       MaterialPageRoute(builder: (context) => const Showmap()),
     );
 
-    // Setelah kembali dari peta, ambil alamat dari global
     if (global.lokasi.isNotEmpty) {
-      setState(() {
-        _addressCtrl.text = global.lokasi;
-      });
+      setState(() => _addressCtrl.text = global.lokasi);
     }
   }
 
+  // ── Submit ────────────────────────────────────────────────────────────────
   Future<void> _submit() async {
     if (_titleCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -140,316 +140,321 @@ class _CreateReportState extends State<CreateReport> {
     super.dispose();
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final files = _resultFile?.files ?? [];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: kNavy,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D1B2A),
+        backgroundColor: kNavy,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+          ),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Text(
           'Buat Laporan',
           style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
           ),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Upload Foto / Video ────────────────────────
-            _buildLabel('Foto / Video'),
+            // ── Upload Foto / Video ───────────────────────────────────────
+            const FormLabel('Foto / Video'),
             const SizedBox(height: 8),
-            GestureDetector(
-              onTap: _pilihFile,
-              child: Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(minHeight: 120),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A2D42),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white24, width: 1.5),
-                ),
-                child: files.isEmpty
-                    ? const Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.perm_media_outlined,
-                            size: 40,
-                            color: Colors.white38,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            'Ketuk untuk pilih foto/video',
-                            style: TextStyle(color: Colors.white38),
-                          ),
-                          SizedBox(height: 4),
-                          Text(
-                            'Bisa pilih lebih dari 1 file',
-                            style: TextStyle(
-                              color: Colors.white24,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: files.map((f) {
-                              final isVideo = [
-                                'mp4',
-                                'mov',
-                                'avi',
-                              ].contains(f.extension?.toLowerCase());
-                              return Container(
-                                width: 80,
-                                height: 80,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF0D1B2A),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(
-                                      isVideo
-                                          ? Icons.videocam_outlined
-                                          : Icons.image_outlined,
-                                      color: Colors.white54,
-                                      size: 28,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 4,
-                                      ),
-                                      child: Text(
-                                        f.name,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 10,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 10),
-                          GestureDetector(
-                            onTap: _pilihFile,
-                            child: const Text(
-                              'Ganti file',
-                              style: TextStyle(
-                                color: Color(0xFF4D9EFF),
-                                fontSize: 12,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
+            _UploadArea(files: files, onTap: _pilihFile),
+            const SizedBox(height: 24),
+
+            // ── Judul ─────────────────────────────────────────────────────
+            const FormLabel('Judul Laporan'),
+            const SizedBox(height: 8),
+            AppTextField(
+              controller: _titleCtrl,
+              hintText: 'Contoh: Jalan rusak di Jl. Merdeka...',
             ),
             const SizedBox(height: 20),
 
-            // ── Judul ─────────────────────────────────────
-            _buildLabel('Judul Laporan'),
+            // ── Jenis Incident ────────────────────────────────────────────
+            const FormLabel('Jenis Incident'),
             const SizedBox(height: 8),
-            _buildTextField(
-              controller: _titleCtrl,
-              hint: 'Contoh: Jalan rusak di...',
-            ),
-            const SizedBox(height: 16),
-
-            // ── Jenis Incident ─────────────────────────────
-            _buildLabel('Jenis Incident'),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
+            _JenisDropdown(
               value: _selectedJenis,
-              dropdownColor: const Color(0xFF1A2D42),
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Pilih jenis incident...',
-                hintStyle: const TextStyle(color: Colors.white38),
-                filled: true,
-                fillColor: const Color(0xFF1A2D42),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 14,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'kerusakan', child: Text('Kerusakan')),
-                DropdownMenuItem(
-                  value: 'kecelakaan',
-                  child: Text('Kecelakaan'),
-                ),
-                DropdownMenuItem(
-                  value: 'kriminal',
-                  child: Text('Kriminalitas'),
-                ),
-                DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
-              ],
-              onChanged: (value) => setState(() => _selectedJenis = value),
+              onChanged: (v) => setState(() => _selectedJenis = v),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // ── Deskripsi ─────────────────────────────────
-            _buildLabel('Deskripsi Kerusakan'),
+            // ── Deskripsi ─────────────────────────────────────────────────
+            const FormLabel('Deskripsi Kerusakan'),
             const SizedBox(height: 8),
-            _buildTextField(
+            AppTextField(
               controller: _descCtrl,
-              hint: 'Jelaskan kondisi jalan...',
+              hintText: 'Jelaskan kondisi, panjang, kedalaman, risiko...',
               maxLines: 4,
             ),
             const SizedBox(height: 20),
 
-            // ── Lokasi ────────────────────────────────────
-            _buildLabel('Lokasi'),
+            // ── Lokasi ────────────────────────────────────────────────────
+            const FormLabel('Lokasi'),
             const SizedBox(height: 8),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: _buildTextField(
+                  child: AppTextField(
                     controller: _addressCtrl,
-                    hint: 'Ketuk ikon peta untuk pilih lokasi...',
-                    readOnly: true, // readonly: diisi dari peta
+                    hintText: 'Ketuk ikon peta untuk pilih lokasi...',
+                    readOnly: true,
+                    prefixIcon: const Icon(
+                      Icons.location_on_outlined,
+                      color: kTextDim,
+                      size: 18,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
-                // ← Tombol ini buka halaman showMap
-                GestureDetector(
-                  onTap: _pilihlokasi,
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1565C0),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.map_outlined, color: Colors.white),
-                  ),
-                ),
+                _MapPickerBtn(onTap: _pilihlokasi),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 28),
 
-            // ── Kirim ─────────────────────────────────────
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1565C0),
-                  disabledBackgroundColor: const Color(
-                    0xFF1565C0,
-                  ).withOpacity(0.5),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _submitting
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        'Kirim Laporan',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-              ),
+            // ── Kirim ─────────────────────────────────────────────────────
+            PrimaryButton(
+              label: 'Kirim Laporan',
+              icon: Icons.send_rounded,
+              loading: _submitting,
+              onPressed: _submit,
             ),
-            const SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Colors.white70,
-        fontWeight: FontWeight.w500,
-        fontSize: 13,
+// ── Upload Area ───────────────────────────────────────────────────────────
+class _UploadArea extends StatelessWidget {
+  final List<PlatformFile> files;
+  final VoidCallback onTap;
+  const _UploadArea({required this.files, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        constraints: const BoxConstraints(minHeight: 130),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: kNavy2,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: files.isEmpty ? kBorder : kBlueBright.withOpacity(0.5),
+            width: 1.5,
+          ),
+        ),
+        child: files.isEmpty ? _emptyState() : _filledState(context),
       ),
     );
   }
 
-  Widget _buildTextField({
-    TextEditingController? controller,
-    String? hint,
-    String? initialValue,
-    int maxLines = 1,
-    bool readOnly = false,
-  }) {
-    return TextFormField(
-      controller: controller,
-      initialValue: controller == null ? initialValue : null,
-      maxLines: maxLines,
-      readOnly: readOnly,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white38),
-        filled: true,
-        fillColor: const Color(0xFF1A2D42),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 14,
+  Widget _emptyState() => Column(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Container(
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: kBlueBright.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(12),
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF1565C0), width: 1.5),
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.perm_media_outlined,
+          size: 24,
+          color: kBlueBright,
         ),
       ),
-    );
-  }
+      const SizedBox(height: 10),
+      const Text(
+        'Ketuk untuk pilih foto / video',
+        style: TextStyle(
+          color: kTextMuted,
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      const SizedBox(height: 4),
+      const Text(
+        'JPG, PNG, MP4 · Bisa lebih dari 1 file',
+        style: TextStyle(color: kTextDim, fontSize: 11),
+      ),
+    ],
+  );
+
+  Widget _filledState(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: files.map((f) {
+          final isVideo = [
+            'mp4',
+            'mov',
+            'avi',
+          ].contains(f.extension?.toLowerCase());
+          return Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: kNavy,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: kBorder),
+            ),
+            alignment: Alignment.center,
+            child: isVideo
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.play_circle_outline,
+                        color: kBlueBright,
+                        size: 28,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        f.extension?.toUpperCase() ?? '',
+                        style: const TextStyle(color: kTextDim, fontSize: 9),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.image_outlined,
+                        color: kBlueBright,
+                        size: 28,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        f.name.length > 10
+                            ? '${f.name.substring(0, 8)}…'
+                            : f.name,
+                        style: const TextStyle(color: kTextDim, fontSize: 9),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+          );
+        }).toList(),
+      ),
+      const SizedBox(height: 10),
+      Row(
+        children: [
+          const Icon(Icons.check_circle, color: kGreen, size: 14),
+          const SizedBox(width: 6),
+          Text(
+            '${files.length} file dipilih',
+            style: const TextStyle(
+              color: kGreen,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: onTap,
+            child: const Text(
+              'Ganti file',
+              style: TextStyle(
+                color: kBlueBright,
+                fontSize: 12,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+// ── Jenis Dropdown ────────────────────────────────────────────────────────
+class _JenisDropdown extends StatelessWidget {
+  final String? value;
+  final ValueChanged<String?> onChanged;
+  const _JenisDropdown({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => DropdownButtonFormField<String>(
+    value: value,
+    isDense: true,
+    dropdownColor: kTextDim,
+    style: const TextStyle(color: Colors.white, fontSize: 14),
+    iconEnabledColor: kTextDim,
+    decoration: InputDecoration(
+      hint: const Text(
+        'Pilih jenis incident...',
+        style: TextStyle(color: Colors.white, fontSize: 13),
+      ),
+      filled: true,
+      fillColor: kNavy2,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: kBlue, width: 1.5),
+      ),
+    ),
+    items: const [
+      DropdownMenuItem(value: 'kerusakan', child: Text('Kerusakan')),
+      DropdownMenuItem(value: 'kecelakaan', child: Text('Kecelakaan')),
+      DropdownMenuItem(value: 'kriminal', child: Text('Kriminalitas')),
+      DropdownMenuItem(value: 'lainnya', child: Text('Lainnya')),
+    ],
+    onChanged: onChanged,
+  );
+}
+
+// ── Map Picker Button ─────────────────────────────────────────────────────
+class _MapPickerBtn extends StatelessWidget {
+  final VoidCallback onTap;
+  const _MapPickerBtn({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        color: kBlue,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      alignment: Alignment.center,
+      child: const Icon(Icons.map_outlined, color: Colors.white, size: 22),
+    ),
+  );
 }
