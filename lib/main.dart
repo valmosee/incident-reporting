@@ -7,6 +7,7 @@ import 'showMap.dart';
 import 'user-side/createReport.dart';
 import 'user-side/dashboardUser.dart';
 import 'user-side/historyReport.dart';
+import 'user-side/detailReport.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // must be first!
@@ -36,6 +37,9 @@ class MyApp extends StatelessWidget {
         '/createReport': (context) => CreateReport(),
         '/dashboardUser': (context) => DashboardUser(),
         '/userHistoryReport': (context) => HistoryReport(),
+        '/detailReport': (context) => DetailReportPage(
+          reportId: ModalRoute.of(context)!.settings.arguments as int,
+        ),
       },
     );
   }
