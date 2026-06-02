@@ -179,13 +179,11 @@ class _DashboardPageState extends State<_DashboardPage> {
                 onRefresh: _fetchAll,
                 color: kBlueBright,
                 backgroundColor: kNavy2,
-                // Pakai LayoutBuilder agar tahu tinggi layar yang tersedia
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     return SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       child: ConstrainedBox(
-                        // Minimal setinggi layar agar konten selalu penuh
                         constraints: BoxConstraints(
                           minHeight: constraints.maxHeight,
                         ),
@@ -198,7 +196,7 @@ class _DashboardPageState extends State<_DashboardPage> {
                               _buildHeader(),
                               const SizedBox(height: 10),
 
-                              // ── Stats — mengisi sisa lebar ─────────────
+                              // ── Stats ─────────────
                               _buildStatsRow(),
                               const SizedBox(height: 14),
 
@@ -213,7 +211,7 @@ class _DashboardPageState extends State<_DashboardPage> {
                               ),
                               const SizedBox(height: 8),
 
-                              // 5 laporan terbaru, jarak merata mengisi ruang
+                              // 5 laporan terbaru
                               _buildLaporanListFill(constraints.maxHeight),
 
                               const SizedBox(height: 12),
@@ -402,7 +400,7 @@ class _DashboardPageState extends State<_DashboardPage> {
     );
   }
 
-  // ── Status + Tips side by side ─────────────────────────────────────────────
+  // ── Status + Tips ─────────────────────────────────────────────
   Widget _buildBottomRow() {
     final total = _total == 0 ? 1 : _total;
     return IntrinsicHeight(

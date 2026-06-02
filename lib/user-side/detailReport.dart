@@ -1,13 +1,14 @@
 // ignore_for_file: use_build_context_synchronously
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:video_player/video_player.dart';
 import '../showMap.dart';
 import '../theme/app_theme.dart';
 import '../theme/app_widgets.dart';
@@ -96,11 +97,9 @@ class _DetailReportPageState extends State<DetailReportPage> {
   void initState() {
     super.initState();
     if (widget.reportId != null) {
-      // Selalu fetch dari Supabase supaya lat/lng dan file_url selalu fresh
       _fetchById(widget.reportId!);
     } else if (widget.item != null) {
       _item = widget.item;
-      // Fetch ulang supaya koordinat tidak stale
       _fetchById(widget.item!.id);
     }
   }
@@ -252,20 +251,10 @@ class _DetailReportPageState extends State<DetailReportPage> {
             child: Column(
               children: [
                 _InfoRow(
-                  icon: Icons.tag,
-                  label: 'ID Laporan',
-                  value: '#${item.id}',
-                ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  child: Divider(color: kBorder, height: 1),
-                ),
-                _InfoRow(
                   icon: Icons.location_on_outlined,
                   label: 'Lokasi',
                   value: item.address,
                 ),
-
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 10),
                   child: Divider(color: kBorder, height: 1),
@@ -275,17 +264,25 @@ class _DetailReportPageState extends State<DetailReportPage> {
                   label: 'Dilaporkan',
                   value: item.tanggal,
                 ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Divider(color: kBorder, height: 1),
+                ),
+                _InfoRow(
+                  icon: Icons.tag,
+                  label: 'ID Laporan',
+                  value: '#${item.id}',
+                ),
               ],
             ),
           ),
 
-          // ── Peta + Progress berdampingan ─────────────────────────────────
+          // ── Peta + Progress ─────────────────────────────────
           const SizedBox(height: 16),
           IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Kiri: peta mini (atau placeholder kalau tidak ada koordinat)
                 Expanded(
                   flex: 5,
                   child: item.hasLocation
@@ -395,7 +392,7 @@ class _DetailReportPageState extends State<DetailReportPage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MAP PREVIEW — kotak peta kecil, tap buka Showmap viewOnly
+// MAP PREVIEW — static tile image, tap buka Showmap viewOnly
 // ─────────────────────────────────────────────────────────────────────────────
 class _MapPreview extends StatelessWidget {
   final LatLng latLng;
@@ -413,7 +410,6 @@ class _MapPreview extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 160,
         decoration: BoxDecoration(
           color: kNavy3,
           borderRadius: BorderRadius.circular(14),
@@ -422,37 +418,13 @@ class _MapPreview extends StatelessWidget {
         clipBehavior: Clip.hardEdge,
         child: Stack(
           children: [
-            // ── Peta non-interaktif ──────────────────────────────────────
-            IgnorePointer(
-              child: FlutterMap(
-                options: MapOptions(
-                  initialCenter: latLng,
-                  initialZoom: 16,
-                  interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.none, // tidak bisa di-drag / zoom
-                  ),
-                ),
-                children: [
-                  TileLayer(
-                    urlTemplate:
-                        'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.jalankita.app',
-                  ),
-                  MarkerLayer(
-                    markers: [
-                      Marker(
-                        point: latLng,
-                        width: 40,
-                        height: 40,
-                        child: const Icon(
-                          Icons.location_on,
-                          color: Colors.red,
-                          size: 40,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+            // ── Static map image ─────────────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              height: double.infinity,
+              child: _StaticMapImage(
+                lat: latLng.latitude,
+                lng: latLng.longitude,
               ),
             ),
 
@@ -463,40 +435,40 @@ class _MapPreview extends StatelessWidget {
               right: 0,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
+                  horizontal: 10,
+                  vertical: 8,
                 ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [
-                      Colors.black.withOpacity(0.75),
+                      Colors.black.withOpacity(0.78),
                       Colors.transparent,
                     ],
                   ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.location_on, color: Colors.red, size: 14),
-                    const SizedBox(width: 6),
+                    const Icon(Icons.location_on, color: Colors.red, size: 13),
+                    const SizedBox(width: 5),
                     Expanded(
                       child: Text(
                         label,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w500,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
+                        horizontal: 8,
+                        vertical: 3,
                       ),
                       decoration: BoxDecoration(
                         color: kBlue,
@@ -506,7 +478,7 @@ class _MapPreview extends StatelessWidget {
                         'Buka peta ↗',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 11,
+                          fontSize: 10,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -523,14 +495,75 @@ class _MapPreview extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// _StaticMapImage — ambil beberapa tile OSM dan susun jadi grid 3×2
+// ─────────────────────────────────────────────────────────────────────────────
+class _StaticMapImage extends StatelessWidget {
+  final double lat;
+  final double lng;
+
+  const _StaticMapImage({required this.lat, required this.lng});
+
+  static const int _zoom = 15;
+  static const int _cols = 3;
+  static const int _rows = 2;
+
+  /// Koordinat → tile index pada zoom tertentu
+  (int tx, int ty) _latLngToTile(double lat, double lng) {
+    final n = 1 << _zoom;
+    final tx = ((lng + 180.0) / 360.0 * n).floor();
+    final latR = lat * 3.14159265358979 / 180.0;
+    final ty =
+        ((1.0 - (log(tan(latR) + 1.0 / cos(latR)) / 3.14159265358979)) /
+                2.0 *
+                n)
+            .floor();
+    return (tx, ty);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final (cx, cy) = _latLngToTile(lat, lng);
+    // Offset: kiri = cx-1..cx+1, atas = cy-1..cy
+    final startX = cx - (_cols ~/ 2);
+    final startY = cy - (_rows ~/ 2);
+
+    return Column(
+      children: List.generate(_rows, (row) {
+        return Expanded(
+          child: Row(
+            children: List.generate(_cols, (col) {
+              final tx = startX + col;
+              final ty = startY + row;
+              final url = 'https://tile.openstreetmap.org/$_zoom/$tx/$ty.png';
+              return Expanded(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.cover,
+                  headers: const {'User-Agent': 'AMBW-App/1.0'},
+                  errorBuilder: (_, __, ___) =>
+                      Container(color: const Color(0xFFE8E8E8)),
+                  loadingBuilder: (_, child, prog) => prog == null
+                      ? child
+                      : Container(color: const Color(0xFFD0D0D0)),
+                ),
+              );
+            }),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MEDIA GRID
 // ─────────────────────────────────────────────────────────────────────────────
 class _MediaGrid extends StatelessWidget {
   final List<String> urls;
   const _MediaGrid({required this.urls});
 
-  bool _isVideo(String url) {
-    final lower = url.toLowerCase();
+  static bool isVideo(String url) {
+    final lower = url.toLowerCase().split('?').first;
     return lower.endsWith('.mp4') ||
         lower.endsWith('.mov') ||
         lower.endsWith('.webm') ||
@@ -551,7 +584,7 @@ class _MediaGrid extends StatelessWidget {
       itemCount: urls.length,
       itemBuilder: (ctx, i) {
         final url = urls[i];
-        if (_isVideo(url)) {
+        if (isVideo(url)) {
           return _VideoThumb(url: url, onTap: () => _openFullscreen(ctx, i));
         }
         return _PhotoThumb(url: url, onTap: () => _openFullscreen(ctx, i));
@@ -570,6 +603,7 @@ class _MediaGrid extends StatelessWidget {
   }
 }
 
+// ── Photo thumbnail ──────────────────────────────────────────────────────────
 class _PhotoThumb extends StatelessWidget {
   final String url;
   final VoidCallback onTap;
@@ -607,44 +641,105 @@ class _PhotoThumb extends StatelessWidget {
   );
 }
 
-class _VideoThumb extends StatelessWidget {
+// ── Video thumbnail — inisialisasi VideoPlayerController untuk preview frame──
+class _VideoThumb extends StatefulWidget {
   final String url;
   final VoidCallback onTap;
   const _VideoThumb({required this.url, required this.onTap});
 
   @override
+  State<_VideoThumb> createState() => _VideoThumbState();
+}
+
+class _VideoThumbState extends State<_VideoThumb> {
+  late final VideoPlayerController _ctrl;
+  bool _initialized = false;
+  bool _error = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize()
+          .then((_) {
+            if (mounted) setState(() => _initialized = true);
+          })
+          .catchError((_) {
+            if (mounted) setState(() => _error = true);
+          });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
+    onTap: widget.onTap,
     child: ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: Container(
-        color: kNavy3,
-        alignment: Alignment.center,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            const Icon(Icons.videocam_outlined, color: kTextDim, size: 32),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: kBlue.withOpacity(0.7),
-                shape: BoxShape.circle,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (_initialized)
+            FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: _ctrl.value.size.width,
+                height: _ctrl.value.size.height,
+                child: VideoPlayer(_ctrl),
               ),
+            )
+          else if (_error)
+            Container(
+              color: kNavy3,
+              alignment: Alignment.center,
               child: const Icon(
-                Icons.play_arrow,
-                color: Colors.white,
-                size: 20,
+                Icons.videocam_off_outlined,
+                color: kTextDim,
+                size: 28,
+              ),
+            )
+          else
+            Container(
+              color: kNavy3,
+              alignment: Alignment.center,
+              child: const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  color: kBlueBright,
+                  strokeWidth: 2,
+                ),
               ),
             ),
-          ],
-        ),
+
+          // Overlay tombol play
+          if (!_error)
+            Center(
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.55),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.play_arrow,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+            ),
+        ],
       ),
     ),
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FULLSCREEN MEDIA VIEWER
+// FULLSCREEN MEDIA VIEWER — foto: InteractiveViewer, video: VideoPlayer
 // ─────────────────────────────────────────────────────────────────────────────
 class _FullscreenMediaViewer extends StatefulWidget {
   final List<String> urls;
@@ -659,19 +754,19 @@ class _FullscreenMediaViewer extends StatefulWidget {
 }
 
 class _FullscreenMediaViewerState extends State<_FullscreenMediaViewer> {
-  late final PageController _ctrl;
+  late final PageController _pageCtrl;
   late int _current;
 
   @override
   void initState() {
     super.initState();
     _current = widget.initialIndex;
-    _ctrl = PageController(initialPage: widget.initialIndex);
+    _pageCtrl = PageController(initialPage: widget.initialIndex);
   }
 
   @override
   void dispose() {
-    _ctrl.dispose();
+    _pageCtrl.dispose();
     super.dispose();
   }
 
@@ -691,22 +786,231 @@ class _FullscreenMediaViewerState extends State<_FullscreenMediaViewer> {
         ),
       ),
       body: PageView.builder(
-        controller: _ctrl,
+        controller: _pageCtrl,
         itemCount: widget.urls.length,
         onPageChanged: (i) => setState(() => _current = i),
-        itemBuilder: (_, i) => InteractiveViewer(
-          child: Center(
-            child: Image.network(
-              widget.urls[i],
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.broken_image_outlined,
-                color: Colors.white54,
-                size: 64,
+        itemBuilder: (_, i) {
+          final url = widget.urls[i];
+          if (_MediaGrid.isVideo(url)) {
+            return _FullscreenVideoPlayer(url: url);
+          }
+          return InteractiveViewer(
+            child: Center(
+              child: Image.network(
+                url,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.broken_image_outlined,
+                  color: Colors.white54,
+                  size: 64,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Fullscreen video player dengan kontrol ────────────────────────────────────
+class _FullscreenVideoPlayer extends StatefulWidget {
+  final String url;
+  const _FullscreenVideoPlayer({required this.url});
+
+  @override
+  State<_FullscreenVideoPlayer> createState() => _FullscreenVideoPlayerState();
+}
+
+class _FullscreenVideoPlayerState extends State<_FullscreenVideoPlayer> {
+  late final VideoPlayerController _ctrl;
+  bool _initialized = false;
+  bool _error = false;
+  double _volume = 0.25;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..initialize()
+          .then((_) {
+            if (mounted) {
+              setState(() => _initialized = true);
+              _ctrl
+                ..setVolume(_volume)
+                ..play();
+            }
+          })
+          .catchError((_) {
+            if (mounted) setState(() => _error = true);
+          });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _setVolume(double v) {
+    setState(() => _volume = v);
+    _ctrl.setVolume(v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_error) {
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.videocam_off_outlined, color: Colors.white54, size: 56),
+            SizedBox(height: 12),
+            Text(
+              'Gagal memuat video',
+              style: TextStyle(color: Colors.white54, fontSize: 14),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!_initialized) {
+      return const Center(child: CircularProgressIndicator(color: kBlueBright));
+    }
+
+    return SafeArea(
+      child: Column(
+        children: [
+          // ── Video ──────────────────────────
+          Expanded(
+            child: Center(
+              child: AspectRatio(
+                aspectRatio: _ctrl.value.aspectRatio,
+                child: VideoPlayer(_ctrl),
               ),
             ),
           ),
-        ),
+
+          // ── Kontrol di bawah ──────────────────────────────────────────
+          Container(
+            color: Colors.black,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Progress bar
+                VideoProgressIndicator(
+                  _ctrl,
+                  allowScrubbing: true,
+                  colors: const VideoProgressColors(
+                    playedColor: kBlueBright,
+                    bufferedColor: Colors.white24,
+                    backgroundColor: Colors.white12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Tombol + volume dalam satu baris
+                Row(
+                  children: [
+                    // Rewind
+                    IconButton(
+                      icon: const Icon(
+                        Icons.replay_10,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                      onPressed: () {
+                        final pos =
+                            _ctrl.value.position - const Duration(seconds: 10);
+                        _ctrl.seekTo(pos < Duration.zero ? Duration.zero : pos);
+                      },
+                    ),
+
+                    // Play / Pause
+                    ValueListenableBuilder<VideoPlayerValue>(
+                      valueListenable: _ctrl,
+                      builder: (_, val, __) => GestureDetector(
+                        onTap: () =>
+                            val.isPlaying ? _ctrl.pause() : _ctrl.play(),
+                        child: Container(
+                          width: 46,
+                          height: 46,
+                          decoration: const BoxDecoration(
+                            color: kBlue,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: Icon(
+                            val.isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                    // Forward
+                    IconButton(
+                      icon: const Icon(
+                        Icons.forward_10,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                      onPressed: () {
+                        final pos =
+                            _ctrl.value.position + const Duration(seconds: 10);
+                        final dur = _ctrl.value.duration;
+                        _ctrl.seekTo(pos > dur ? dur : pos);
+                      },
+                    ),
+
+                    const Spacer(),
+
+                    // Volume icon
+                    Icon(
+                      _volume == 0
+                          ? Icons.volume_off
+                          : _volume < 0.5
+                          ? Icons.volume_down
+                          : Icons.volume_up,
+                      color: Colors.white70,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 4),
+
+                    // Volume slider
+                    SizedBox(
+                      width: 90,
+                      child: SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 3,
+                          thumbShape: const RoundSliderThumbShape(
+                            enabledThumbRadius: 6,
+                          ),
+                          overlayShape: const RoundSliderOverlayShape(
+                            overlayRadius: 12,
+                          ),
+                          activeTrackColor: kBlueBright,
+                          inactiveTrackColor: Colors.white24,
+                          thumbColor: Colors.white,
+                          overlayColor: kBlueBright.withOpacity(0.2),
+                        ),
+                        child: Slider(
+                          value: _volume,
+                          min: 0,
+                          max: 1,
+                          onChanged: _setVolume,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
