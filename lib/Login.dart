@@ -1,5 +1,7 @@
+// ignore_for_file: file_names
+
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:kelompokc_incidentreporting/createReport.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class Login extends StatefulWidget {
@@ -14,8 +16,18 @@ class _LoginState extends State<Login> {
   final _passCtrl = TextEditingController();
   bool _obscure = true;
   bool _loading = false;
-  String _role = 'user'; // 'user' | 'admin' | 'worker'
+  String _role = 'user';
   final supabase = Supabase.instance.client;
+
+  // At the top of your State class
+  final List<String> _bgImages = [
+    'assets/images/kecelakaan-di-darmo-surabaya_169.jpeg',
+    'assets/images/kerusakan_jalan.jpeg',
+    // 'assets/images/your-second-image.jpeg',
+    // 'assets/images/your-third-image.jpeg',
+  ];
+  int _currentBgIndex = 0;
+  Timer? _bgTimer;
 
   Future<void> _login() async {
     setState(() => _loading = true);
@@ -25,7 +37,6 @@ class _LoginState extends State<Login> {
         password: _passCtrl.text,
       );
 
-      // ambil role dari tabel profiles
       final profile = await Supabase.instance.client
           .from('profiles')
           .select('role')
@@ -40,12 +51,16 @@ class _LoginState extends State<Login> {
       } else if (role == 'worker') {
         Navigator.pushReplacementNamed(context, '/worker');
       } else {
-        Navigator.pushReplacementNamed(context, '/map');
+        Navigator.pushReplacementNamed(context, '/dashboardUser');
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Login gagal: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Login gagal: $e'),
+          // ✅ uses theme error color
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
       );
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -55,34 +70,46 @@ class _LoginState extends State<Login> {
   @override
   void initState() {
     super.initState();
-
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-    final session = Supabase.instance.client.auth.currentSession;
-    if (session != null && mounted) {
-      final profile = await Supabase.instance.client
-          .from('profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
-      
-      final role = profile['role'];
-      if (!mounted) return;
-      
-      if (role == 'admin') {
-        Navigator.pushReplacementNamed(context, '/admin');
-      } else if (role == 'worker') {
-        Navigator.pushReplacementNamed(context, '/worker');
-      } else {
-        Navigator.pushReplacementNamed(context, '/map');
+      final session = Supabase.instance.client.auth.currentSession;
+      if (session != null && mounted) {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+        final role = profile['role'];
+        if (!mounted) return;
+
+        if (role == 'admin') {
+          Navigator.pushReplacementNamed(context, '/admin');
+        } else if (role == 'worker') {
+          Navigator.pushReplacementNamed(context, '/worker');
+        } else {
+          Navigator.pushReplacementNamed(context, '/map');
+        }
       }
-    }
-  });
+    });
+
+    _bgTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (mounted) {
+        setState(() {
+          _currentBgIndex = (_currentBgIndex + 1) % _bgImages.length;
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _bgTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> evtlogout(BuildContext context) async {
     try {
       await Supabase.instance.client.auth.signOut();
-
       debugPrint("Logout berhasil");
     } catch (e) {
       debugPrint("ERROR LOGOUT: $e");
@@ -91,16 +118,13 @@ class _LoginState extends State<Login> {
 
   Future<void> evtregister(String email, String password) async {
     debugPrint("start register");
-
     try {
       final response = await supabase.auth.signUp(
         email: email,
         password: password,
         data: {'display_name': "-", 'phone': '-', 'provider_type': 'user'},
       );
-
       debugPrint("response: $response");
-
       if (response.user != null) {
         debugPrint('Register berhasil');
       } else {
@@ -116,14 +140,15 @@ class _LoginState extends State<Login> {
     final isMobile = MediaQuery.of(context).size.width < 700;
 
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 255, 255, 255),
+      // ✅ uses theme surface color
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: isMobile ? _buildMobileLayout() : _buildDesktopLayout(),
     );
   }
 
   Widget _buildDesktopLayout() {
     return SizedBox(
-      height: MediaQuery.of(context).size.height, // full screen height
+      height: MediaQuery.of(context).size.height,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -142,19 +167,31 @@ class _LoginState extends State<Login> {
         SizedBox(height: 280, child: _buildLeftPanel()),
         Expanded(
           child: Container(
-            color: Colors.white,
+            // ✅ uses theme surface color
+            color: Theme.of(context).colorScheme.surface,
             padding: EdgeInsets.fromLTRB(28, 16, 28, safeBottom + 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Selamat datang kembali',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    // ✅ uses theme text color
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
                 const SizedBox(height: 2),
-                const Text(
+                Text(
                   'Masuk untuk melanjutkan ke JalanKita',
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                  style: TextStyle(
+                    fontSize: 12,
+                    // ✅ muted text via onSurface with opacity
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -194,7 +231,10 @@ class _LoginState extends State<Login> {
                       ),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text('Lupa password?'),
+                    child: const Text(
+                      'Lupa password?',
+                      style: TextStyle(fontSize: 24),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -202,9 +242,7 @@ class _LoginState extends State<Login> {
                   width: double.infinity,
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _loading
-                        ? null
-                        : () => _login(),
+                    onPressed: _loading ? null : () => _login(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1A5CFF),
                       shape: RoundedRectangleBorder(
@@ -212,20 +250,20 @@ class _LoginState extends State<Login> {
                       ),
                     ),
                     child: _loading
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 20,
                             height: 20,
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              // ✅ spinner color matches button foreground
+                              color: Theme.of(context).colorScheme.onPrimary,
                               strokeWidth: 2,
                             ),
                           )
                         : const Text(
                             'Masuk',
                             style: TextStyle(
-                              color: Colors.white,
+                              fontSize: 16,
                               fontWeight: FontWeight.w600,
-                              fontSize: 15,
                             ),
                           ),
                   ),
@@ -240,48 +278,47 @@ class _LoginState extends State<Login> {
 
   Widget _buildLeftPanel() {
     final isMobile = MediaQuery.of(context).size.width < 700;
+    // ✅ left panel uses theme secondary color (navy)
+    final panelColor = Theme.of(context).colorScheme.secondary;
 
     return Container(
-      width: MediaQuery.of(context).size.width < 700
+      width: isMobile
           ? double.infinity
           : MediaQuery.of(context).size.width * 0.3,
-      height: isMobile ? 300 : null, // explicit height on mobile,
-      decoration: const BoxDecoration(color: Color(0xFF0A2540)),
+      height: isMobile ? 300 : null,
+      decoration: BoxDecoration(color: panelColor),
       child: Stack(
         children: [
-          // bubble decorations
           Positioned(
             top: -40,
             left: -40,
-            child: _bubble(180, Colors.blue.withValues(alpha: 0.08)),
+            child: _bubble(180, Colors.white.withValues(alpha: 0.05)),
           ),
           Positioned(
             top: 140,
             left: 120,
-            child: _bubble(120, Colors.blue.withValues(alpha: 0.08)),
+            child: _bubble(120, Colors.white.withValues(alpha: 0.05)),
           ),
           Positioned(
             bottom: 60,
             right: -60,
-            child: _bubble(220, Colors.blue.withValues(alpha: 0.06)),
+            child: _bubble(220, Colors.white.withValues(alpha: 0.04)),
           ),
           Positioned(
             bottom: 250,
             left: 110,
-            child: _bubble(220, Colors.blue.withValues(alpha: 0.06)),
+            child: _bubble(220, Colors.white.withValues(alpha: 0.04)),
           ),
           Positioned(
             top: 160,
             right: -30,
-            child: _bubble(100, Colors.blue.withValues(alpha: 0.1)),
+            child: _bubble(100, Colors.white.withValues(alpha: 0.06)),
           ),
           Positioned(
             bottom: -30,
             left: 20,
-            child: _bubble(120, Colors.white.withValues(alpha: 0.04)),
+            child: _bubble(120, Colors.white.withValues(alpha: 0.03)),
           ),
-
-          // content centered
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -291,32 +328,38 @@ class _LoginState extends State<Login> {
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
-                    color: const Color.fromARGB(121, 0, 0, 0),
+                    // ✅ icon circle uses primary (amber) with opacity
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(90),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.map_rounded,
-                    color: Colors.white,
+                    // ✅ icon uses primary accent (amber)
+                    color: Theme.of(context).colorScheme.primary,
                     size: 50,
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
+                Text(
                   'JalanKita',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 32, // bigger title
+                    fontSize: isMobile
+                        ? 24
+                        : 60, // no const, isMobile is runtime
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     letterSpacing: -0.5,
                   ),
                 ),
-                const SizedBox(height: 10),
-                const Text(
+                const SizedBox(height: 7),
+                Text(
                   'Platform pelaporan infrastruktur jalan rusak Kota Surabaya',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: isMobile ? 16 : 20,
                     color: Colors.white38,
                     height: 1.6,
                   ),
@@ -338,129 +381,115 @@ class _LoginState extends State<Login> {
   }
 
   Widget _buildRightPanel() {
-    return Container(
-      // no fixed width — Expanded in Row handles it
-      padding: const EdgeInsets.symmetric(horizontal: 64, vertical: 48),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.zero,
-      ),
-      child: Center(
-        // centers the form content horizontally
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: 400,
-          ), // form doesn't stretch too wide on large screens
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center, // centers vertically
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              const Text(
-                'Selamat datang kembali',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // 🖼️ Animated background slideshow
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 800),
+          child: Container(
+            key: ValueKey(_currentBgIndex),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              image: DecorationImage(
+                image: AssetImage(_bgImages[_currentBgIndex]),
+                fit: BoxFit.cover,
+                opacity: 0.18,
               ),
-              const SizedBox(height: 4),
-              const Text(
-                'Masuk untuk melanjutkan ke JalanKita',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  _roleTab('Masyarakat', 'user', Icons.person_outline),
-                  const SizedBox(width: 6),
-                  _roleTab('Admin', 'admin', Icons.shield_outlined),
-                  const SizedBox(width: 6),
-                  _roleTab('Pekerja', 'worker', Icons.engineering_outlined),
-                ],
-              ),
-              const SizedBox(height: 20),
-              _buildField(
-                'Email',
-                _emailCtrl,
-                Icons.mail_outline,
-                hint: 'email@contoh.com',
-              ),
-              const SizedBox(height: 12),
-              _buildField(
-                'Password',
-                _passCtrl,
-                Icons.lock_outline,
-                hint: '••••••••',
-                obscure: true,
-              ),
-              const SizedBox(height: 6),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: const Text('Lupa password?'),
-                ),
-              ),
-              SizedBox(
-                width: double.infinity,
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: _loading
-                      ? null
-                      : () => _login(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A5CFF),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          'Masuk',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _statPill(String num, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white10,
-        border: Border.all(color: Colors.white12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            num,
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
             ),
           ),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 10, color: Colors.white38),
+        ),
+
+        // 📋 Your form on top
+        Center(
+          child: Container(
+            width: 700,
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 36),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Selamat datang kembali',
+                  style: TextStyle(
+                    fontSize: 45,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Masuk untuk melanjutkan ke JalanKita',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    _roleTab('Masyarakat', 'user', Icons.person_outline),
+                    const SizedBox(width: 6),
+                    _roleTab('Admin', 'admin', Icons.shield_outlined),
+                    const SizedBox(width: 6),
+                    _roleTab('Pekerja', 'worker', Icons.engineering_outlined),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                _buildField(
+                  'Email',
+                  _emailCtrl,
+                  Icons.mail_outline,
+                  hint: 'email@contoh.com',
+                ),
+                const SizedBox(height: 12),
+                _buildField(
+                  'Password',
+                  _passCtrl,
+                  Icons.lock_outline,
+                  hint: '••••••••',
+                  obscure: true,
+                ),
+                const SizedBox(height: 6),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {},
+                    child: const Text(
+                      'Lupa password?',
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: _loading ? null : _login,
+                    child: _loading
+                        ? SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text('Masuk', style: TextStyle(fontSize: 22)),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -471,80 +500,80 @@ class _LoginState extends State<Login> {
     String hint = '',
     bool obscure = false,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 12,
+          style: TextStyle(
+            fontSize: 24, // was 12
             fontWeight: FontWeight.w500,
-            color: Colors.grey,
+            color: cs.onSurface.withValues(alpha: 0.5),
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: 6), // was 5
         TextField(
           controller: ctrl,
           obscureText: obscure ? _obscure : false,
+          style: const TextStyle(fontSize: 20), // add explicit text size
           decoration: InputDecoration(
             hintText: hint,
-            prefixIcon: Icon(icon, size: 18),
+            prefixIcon: Icon(icon, size: 28), // was 18
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 16,
+            ), // bigger tap area
             suffixIcon: obscure
                 ? IconButton(
                     icon: Icon(
                       _obscure
                           ? Icons.visibility_off_outlined
                           : Icons.visibility_outlined,
-                      size: 18,
+                      size: 28, // was 18
                     ),
                     onPressed: () => setState(() => _obscure = !_obscure),
                   )
                 : null,
-            filled: true,
-            fillColor: Colors.grey.shade50,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 0.5),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(8),
-              borderSide: BorderSide(color: Colors.grey.shade300, width: 0.5),
-            ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 12,
-            ),
           ),
         ),
       ],
     );
   }
 
-  // Maybe delete this later, for testing role-based UI
   Widget _roleTab(String label, String value, IconData icon) {
     final active = _role == value;
+    final cs = Theme.of(context).colorScheme;
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _role = value),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 24), // was 8
           decoration: BoxDecoration(
-            color: active ? const Color(0xFF0A2540) : Colors.grey.shade100,
+            // ✅ active uses secondary (navy), inactive uses surface with border
+            color: active ? cs.secondary : cs.surface,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: active ? const Color(0xFF0A2540) : Colors.grey.shade300,
-            ),
+            border: Border.all(color: active ? cs.secondary : cs.outline),
           ),
           child: Column(
             children: [
-              Icon(icon, size: 16, color: active ? Colors.white : Colors.grey),
+              Icon(
+                icon,
+                size: 50,
+                // ✅ active icon uses primary (amber), inactive uses muted
+                color: active
+                    ? cs.primary
+                    : cs.onSurface.withValues(alpha: 0.4),
+              ),
               const SizedBox(height: 2),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 18,
                   fontWeight: FontWeight.w500,
-                  color: active ? Colors.white : Colors.grey,
+                  color: active
+                      ? Colors.white
+                      : cs.onSurface.withValues(alpha: 0.4),
                 ),
               ),
             ],

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
+import 'package:kelompokc_incidentreporting/theme/theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'login.dart';
 import 'showMap.dart';
 import 'auth.dart';
-import 'createReport.dart';
+import 'user-side/createReport.dart';
+import 'user-side/dashboardUser.dart';
+import 'user-side/historyReport.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // must be first!
@@ -27,11 +30,15 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'AMBW',
-      theme: ThemeData(primarySwatch: Colors.blue),
+      theme: lightMode,
+      darkTheme: darkMode,
       home: const AuthGate(),
-      routes: {'/map': (context) => Showmap(),
-               '/login': (context) => Login(),
-               '/CreateReport': (context) => CreateReport()
+      routes: {
+        '/map': (context) => Showmap(),
+        '/login': (context) => Login(),
+        '/createReport': (context) => CreateReport(),
+        '/dashboardUser': (context) => DashboardUser(),
+        '/userHistoryReport': (context) => HistoryReport(),
       },
     );
   }
