@@ -3,10 +3,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../app_colors.dart';
-import '../app_widgets.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_widgets.dart';
 
-// ── Model ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// MODEL
+// ─────────────────────────────────────────────────────────────────────────────
 class HistoryItem {
   final int id;
   final String title;
@@ -46,10 +48,11 @@ class HistoryItem {
   }
 }
 
-// ── Konstanta filter ──────────────────────────────────────────────────────
 const _filterOptions = ['Semua', 'Menunggu', 'Diproses', 'Selesai'];
 
-// ── HistoryReport ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// HISTORY REPORT PAGE
+// ─────────────────────────────────────────────────────────────────────────────
 class HistoryReport extends StatefulWidget {
   const HistoryReport({super.key});
 
@@ -80,7 +83,7 @@ class _HistoryReportState extends State<HistoryReport> {
     super.dispose();
   }
 
-  // ── Fetch ─────────────────────────────────────────────────────────────────
+  // ── Fetch ──────────────────────────────────────────────────────────────────
   Future<void> _fetchReports() async {
     setState(() {
       _loading = true;
@@ -112,7 +115,7 @@ class _HistoryReportState extends State<HistoryReport> {
     }
   }
 
-  // ── Filter + Search ───────────────────────────────────────────────────────
+  // ── Filter + Search ────────────────────────────────────────────────────────
   void _applyFilter() {
     final query = _searchCtrl.text.toLowerCase();
     setState(() {
@@ -137,7 +140,7 @@ class _HistoryReportState extends State<HistoryReport> {
     _applyFilter();
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -146,10 +149,7 @@ class _HistoryReportState extends State<HistoryReport> {
         backgroundColor: kNavy,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Colors.white,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.maybePop(context),
         ),
         title: const Text(
@@ -163,41 +163,39 @@ class _HistoryReportState extends State<HistoryReport> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: kTextMuted),
-            tooltip: 'Muat ulang',
             onPressed: _fetchReports,
           ),
         ],
       ),
       body: Column(
         children: [
-          // ── Search bar ─────────────────────────────────────────────────
+          // ── Search bar ───────────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-            child: AppTextField(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: TextField(
               controller: _searchCtrl,
-              hintText: 'Cari judul, lokasi, atau jenis...',
-              prefixIcon: const Icon(
-                Icons.search_rounded,
-                color: kTextDim,
-                size: 20,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: kInputDecoration(
+                hint: 'Cari judul, lokasi, atau jenis...',
+                prefix: const Icon(Icons.search, color: kTextDim, size: 20),
+                suffix: _searchCtrl.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(
+                          Icons.close,
+                          color: kTextDim,
+                          size: 18,
+                        ),
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          _applyFilter();
+                        },
+                      )
+                    : null,
               ),
-              suffixIcon: _searchCtrl.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(
-                        Icons.close_rounded,
-                        color: kTextDim,
-                        size: 18,
-                      ),
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        _applyFilter();
-                      },
-                    )
-                  : null,
             ),
           ),
 
-          // ── Filter chips ───────────────────────────────────────────────
+          // ── Filter chips ─────────────────────────────────────────────────
           const SizedBox(height: 12),
           SizedBox(
             height: 36,
@@ -251,29 +249,28 @@ class _HistoryReportState extends State<HistoryReport> {
               },
             ),
           ),
+          const SizedBox(height: 12),
 
-          // ── Summary count ──────────────────────────────────────────────
+          // ── Summary count ────────────────────────────────────────────────
           if (!_loading && _error == null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 4),
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
               child: Row(
                 children: [
                   Text(
                     '${_filtered.length} laporan ditemukan',
-                    style: const TextStyle(color: kTextDim, fontSize: 12),
+                    style: kStyleDim,
                   ),
                 ],
               ),
             ),
 
-          // ── List ───────────────────────────────────────────────────────
+          // ── List ─────────────────────────────────────────────────────────
           Expanded(
             child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(color: kBlueBright),
-                  )
+                ? const LoadingCenter()
                 : _error != null
-                ? _buildError()
+                ? ErrorCenter(message: _error!, onRetry: _fetchReports)
                 : _filtered.isEmpty
                 ? _buildEmpty()
                 : RefreshIndicator(
@@ -281,7 +278,7 @@ class _HistoryReportState extends State<HistoryReport> {
                     color: kBlueBright,
                     backgroundColor: kNavy2,
                     child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                       itemCount: _filtered.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (_, i) => _HistoryCard(
@@ -293,8 +290,6 @@ class _HistoryReportState extends State<HistoryReport> {
           ),
         ],
       ),
-
-      // ── FAB buat laporan baru ──────────────────────────────────────────
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.pushNamed(context, '/createReport');
@@ -310,66 +305,22 @@ class _HistoryReportState extends State<HistoryReport> {
     );
   }
 
-  // ── Error & empty states ──────────────────────────────────────────────────
-  Widget _buildError() => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
+  // ── Empty state ────────────────────────────────────────────────────────────
+  Widget _buildEmpty() {
+    final hasActiveFilter =
+        _searchCtrl.text.isNotEmpty || _activeFilter != 'Semua';
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: kRed.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            alignment: Alignment.center,
-            child: const Icon(
-              Icons.error_outline_rounded,
-              color: kRed,
-              size: 32,
-            ),
+          Icon(
+            hasActiveFilter ? Icons.search_off_rounded : Icons.inbox_outlined,
+            color: kTextDim,
+            size: 56,
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Text(
-            _error!,
-            style: const TextStyle(color: kTextMuted, fontSize: 13),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 20),
-          PrimaryButton(label: 'Coba lagi', onPressed: _fetchReports),
-        ],
-      ),
-    ),
-  );
-
-  Widget _buildEmpty() => Center(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 40),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              color: kNavy2,
-              shape: BoxShape.circle,
-              border: Border.all(color: kBorder),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              _searchCtrl.text.isNotEmpty || _activeFilter != 'Semua'
-                  ? Icons.search_off_rounded
-                  : Icons.inbox_outlined,
-              color: kTextDim,
-              size: 32,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            _searchCtrl.text.isNotEmpty || _activeFilter != 'Semua'
+            hasActiveFilter
                 ? 'Tidak ada laporan yang cocok'
                 : 'Belum ada laporan',
             style: const TextStyle(
@@ -380,32 +331,26 @@ class _HistoryReportState extends State<HistoryReport> {
           ),
           const SizedBox(height: 6),
           Text(
-            _searchCtrl.text.isNotEmpty || _activeFilter != 'Semua'
+            hasActiveFilter
                 ? 'Coba ubah filter atau kata kunci pencarian'
                 : 'Tap tombol di bawah untuk membuat laporan pertama',
-            style: const TextStyle(color: kTextDim, fontSize: 12, height: 1.5),
+            style: kStyleDim,
             textAlign: TextAlign.center,
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
 
   // ── Bottom sheet detail ────────────────────────────────────────────────────
   void _showDetail(HistoryItem item) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: kNavy2,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      isScrollControlled: true,
-      builder: (_) => _DetailSheet(item: item),
-    );
+    Navigator.pushNamed(context, '/detailReport', arguments: item.id);
   }
 }
 
-// ── History Card ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// HISTORY CARD
+// ─────────────────────────────────────────────────────────────────────────────
 class _HistoryCard extends StatelessWidget {
   final HistoryItem item;
   final VoidCallback onTap;
@@ -414,20 +359,15 @@ class _HistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, iconColor, iconBg) = statusIconStyle(item.status);
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kNavy2,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: kBorder),
-        ),
+        decoration: kCardDecoration,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Row atas: icon + judul + badge ─────────────────────────
+            // Row atas
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -448,15 +388,11 @@ class _HistoryCard extends StatelessWidget {
                     children: [
                       Text(
                         item.title,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
+                        style: kStyleCardTitle,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 4),
                       JenisBadge(jenis: item.jenis),
                     ],
                   ),
@@ -466,13 +402,12 @@ class _HistoryCard extends StatelessWidget {
               ],
             ),
 
-            // ── Divider ────────────────────────────────────────────────
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Divider(color: kBorder, height: 1),
             ),
 
-            // ── Row bawah: lokasi + tanggal + panah ────────────────────
+            // Row bawah
             Row(
               children: [
                 const Icon(
@@ -484,7 +419,7 @@ class _HistoryCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     item.address,
-                    style: const TextStyle(color: kTextDim, fontSize: 11),
+                    style: kStyleDim,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -496,10 +431,7 @@ class _HistoryCard extends StatelessWidget {
                   size: 12,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  item.tanggal,
-                  style: const TextStyle(color: kTextDim, fontSize: 11),
-                ),
+                Text(item.tanggal, style: kStyleDim),
                 const SizedBox(width: 8),
                 const Icon(Icons.chevron_right, color: kTextDim, size: 18),
               ],
@@ -507,298 +439,6 @@ class _HistoryCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-// ── Detail Bottom Sheet ───────────────────────────────────────────────────
-class _DetailSheet extends StatelessWidget {
-  final HistoryItem item;
-  const _DetailSheet({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final photos = item.fileUrl.isEmpty
-        ? <String>[]
-        : item.fileUrl.split(',').where((u) => u.trim().isNotEmpty).toList();
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.65,
-      minChildSize: 0.4,
-      maxChildSize: 0.92,
-      expand: false,
-      builder: (_, scrollCtrl) => Column(
-        children: [
-          // Drag handle
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: kBorder,
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          Expanded(
-            child: SingleChildScrollView(
-              controller: scrollCtrl,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Header ────────────────────────────────────────────
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.title,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 16,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      StatusBadge(status: item.status),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  JenisBadge(jenis: item.jenis),
-                  const SizedBox(height: 20),
-
-                  // ── Info rows ─────────────────────────────────────────
-                  _InfoRow(
-                    icon: Icons.location_on_outlined,
-                    label: 'Lokasi',
-                    value: item.address,
-                  ),
-                  const SizedBox(height: 10),
-                  _InfoRow(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Dilaporkan',
-                    value: item.tanggal,
-                  ),
-                  const SizedBox(height: 10),
-                  _InfoRow(
-                    icon: Icons.tag,
-                    label: 'ID Laporan',
-                    value: '#${item.id}',
-                  ),
-
-                  // ── Timeline ──────────────────────────────────────────
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Progress',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  _SheetTimeline(status: item.status),
-
-                  // ── Foto bukti ────────────────────────────────────────
-                  if (photos.isNotEmpty) ...[
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Foto Bukti',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 100,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: photos.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 8),
-                        itemBuilder: (_, i) => ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            photos[i].trim(),
-                            width: 100,
-                            height: 100,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 100,
-                              height: 100,
-                              color: kNavy,
-                              alignment: Alignment.center,
-                              child: const Icon(
-                                Icons.broken_image_outlined,
-                                color: kTextDim,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ── Info Row ──────────────────────────────────────────────────────────────
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
-  final String label, value;
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.06),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        alignment: Alignment.center,
-        child: Icon(icon, color: kBlueBright, size: 16),
-      ),
-      const SizedBox(width: 12),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(color: kTextDim, fontSize: 11)),
-            const SizedBox(height: 2),
-            Text(
-              value,
-              style: const TextStyle(color: Colors.white, fontSize: 13),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-// ── Sheet Timeline ────────────────────────────────────────────────────────
-class _SheetTimeline extends StatelessWidget {
-  final String status;
-  const _SheetTimeline({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final steps = [
-      {
-        'label': 'Laporan Dikirim',
-        'sub': 'Laporan berhasil masuk ke sistem',
-        'done': true,
-      },
-      {
-        'label': 'Verifikasi Admin',
-        'sub': 'Admin sedang memeriksa laporan',
-        'done': status == 'proses' || status == 'selesai',
-      },
-      {
-        'label': 'Pekerja Ditugaskan',
-        'sub': 'Tim lapangan diarahkan ke lokasi',
-        'done': status == 'proses' || status == 'selesai',
-      },
-      {
-        'label': 'Perbaikan Selesai',
-        'sub': 'Kerusakan telah berhasil diperbaiki',
-        'done': status == 'selesai',
-      },
-    ];
-
-    return Column(
-      children: List.generate(steps.length, (i) {
-        final step = steps[i];
-        final done = step['done'] as bool;
-        final isLast = i == steps.length - 1;
-
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Dot + connector line
-              SizedBox(
-                width: 24,
-                child: Column(
-                  children: [
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        color: done ? kBlueTag : Colors.transparent,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: done ? kBlueTag : kBorder,
-                          width: done ? 0 : 2,
-                        ),
-                      ),
-                      alignment: Alignment.center,
-                      child: done
-                          ? const Icon(
-                              Icons.check,
-                              color: Colors.white,
-                              size: 12,
-                            )
-                          : null,
-                    ),
-                    if (!isLast)
-                      Expanded(
-                        child: Container(
-                          width: 2,
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          color: done ? kBlueTag.withOpacity(0.4) : kBorder,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Text
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        step['label'] as String,
-                        style: TextStyle(
-                          color: done ? Colors.white : kTextDim,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        step['sub'] as String,
-                        style: const TextStyle(color: kTextDim, fontSize: 11),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      }),
     );
   }
 }

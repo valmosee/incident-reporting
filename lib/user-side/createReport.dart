@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../showMap.dart';
 import '../global.dart' as global;
-import '../app_colors.dart';
-import '../app_widgets.dart';
+import '../theme/app_theme.dart';
+import '../theme/app_widgets.dart';
 
 class CreateReport extends StatefulWidget {
   const CreateReport({super.key});
@@ -25,7 +25,8 @@ class _CreateReportState extends State<CreateReport> {
   String? _selectedJenis;
   bool _submitting = false;
 
-  // ── Pilih file ────────────────────────────────────────────────────────────
+  // ── Logic: tidak diubah ──────────────────────────────────────────────────
+
   Future<void> _pilihFile() async {
     if (kIsWeb) {
       final result = await FilePicker.platform.pickFiles(
@@ -48,7 +49,6 @@ class _CreateReportState extends State<CreateReport> {
     }
   }
 
-  // ── Pilih lokasi via peta ──────────────────────────────────────────────────
   void _pilihlokasi() async {
     global.lokasi = '';
     global.latitude = 0;
@@ -64,7 +64,6 @@ class _CreateReportState extends State<CreateReport> {
     }
   }
 
-  // ── Submit ────────────────────────────────────────────────────────────────
   Future<void> _submit() async {
     if (_titleCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -140,102 +139,80 @@ class _CreateReportState extends State<CreateReport> {
     super.dispose();
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  // ── Build ────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final files = _resultFile?.files ?? [];
-
     return Scaffold(
       backgroundColor: kNavy,
       appBar: AppBar(
         backgroundColor: kNavy,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Colors.white,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: const Text(
           'Buat Laporan',
           style: TextStyle(
             color: Colors.white,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
           ),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Upload Foto / Video ───────────────────────────────────────
-            const FormLabel('Foto / Video'),
+            // ── Upload Foto / Video ──────────────────────────────────────
+            const FieldLabel('Foto / Video'),
             const SizedBox(height: 8),
-            _UploadArea(files: files, onTap: _pilihFile),
-            const SizedBox(height: 24),
+            _MediaPicker(files: _resultFile?.files ?? [], onTap: _pilihFile),
+            const SizedBox(height: 20),
 
-            // ── Judul ─────────────────────────────────────────────────────
-            const FormLabel('Judul Laporan'),
+            // ── Judul ───────────────────────────────────────────────────
+            const FieldLabel('Judul Laporan'),
             const SizedBox(height: 8),
             AppTextField(
               controller: _titleCtrl,
-              hintText: 'Contoh: Jalan rusak di Jl. Merdeka...',
+              hint: 'Contoh: Jalan rusak di...',
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // ── Jenis Incident ────────────────────────────────────────────
-            const FormLabel('Jenis Incident'),
+            // ── Jenis Incident ──────────────────────────────────────────
+            const FieldLabel('Jenis Incident'),
             const SizedBox(height: 8),
             _JenisDropdown(
               value: _selectedJenis,
               onChanged: (v) => setState(() => _selectedJenis = v),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // ── Deskripsi ─────────────────────────────────────────────────
-            const FormLabel('Deskripsi Kerusakan'),
+            // ── Deskripsi ───────────────────────────────────────────────
+            const FieldLabel('Deskripsi Kerusakan'),
             const SizedBox(height: 8),
             AppTextField(
               controller: _descCtrl,
-              hintText: 'Jelaskan kondisi, panjang, kedalaman, risiko...',
+              hint: 'Jelaskan kondisi kejadian...',
               maxLines: 4,
             ),
             const SizedBox(height: 20),
 
-            // ── Lokasi ────────────────────────────────────────────────────
-            const FormLabel('Lokasi'),
+            // ── Lokasi ──────────────────────────────────────────────────
+            const FieldLabel('Lokasi'),
             const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: AppTextField(
-                    controller: _addressCtrl,
-                    hintText: 'Ketuk ikon peta untuk pilih lokasi...',
-                    readOnly: true,
-                    prefixIcon: const Icon(
-                      Icons.location_on_outlined,
-                      color: kTextDim,
-                      size: 18,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                _MapPickerBtn(onTap: _pilihlokasi),
-              ],
-            ),
-            const SizedBox(height: 28),
+            _LocationRow(controller: _addressCtrl, onPickMap: _pilihlokasi),
+            const SizedBox(height: 20),
 
-            // ── Kirim ─────────────────────────────────────────────────────
+            // ── Kirim ───────────────────────────────────────────────────
             PrimaryButton(
               label: 'Kirim Laporan',
-              icon: Icons.send_rounded,
               loading: _submitting,
               onPressed: _submit,
             ),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -243,175 +220,131 @@ class _CreateReportState extends State<CreateReport> {
   }
 }
 
-// ── Upload Area ───────────────────────────────────────────────────────────
-class _UploadArea extends StatelessWidget {
+// ─────────────────────────────────────────────────────────────────────────────
+// _MediaPicker — area upload foto/video
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MediaPicker extends StatelessWidget {
   final List<PlatformFile> files;
   final VoidCallback onTap;
-  const _UploadArea({required this.files, required this.onTap});
+
+  const _MediaPicker({required this.files, required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: double.infinity,
-        constraints: const BoxConstraints(minHeight: 130),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: kNavy2,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: files.isEmpty ? kBorder : kBlueBright.withOpacity(0.5),
-            width: 1.5,
-          ),
-        ),
-        child: files.isEmpty ? _emptyState() : _filledState(context),
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 120),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kNavy2,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white24, width: 1.5),
       ),
-    );
-  }
+      child: files.isEmpty ? _emptyState() : _fileGrid(),
+    ),
+  );
 
-  Widget _emptyState() => Column(
+  Widget _emptyState() => const Column(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: kBlueBright.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        alignment: Alignment.center,
-        child: const Icon(
-          Icons.perm_media_outlined,
-          size: 24,
-          color: kBlueBright,
-        ),
-      ),
-      const SizedBox(height: 10),
-      const Text(
+      Icon(Icons.perm_media_outlined, size: 40, color: Colors.white38),
+      SizedBox(height: 8),
+      Text(
         'Ketuk untuk pilih foto / video',
-        style: TextStyle(
-          color: kTextMuted,
-          fontSize: 13,
-          fontWeight: FontWeight.w500,
-        ),
+        style: TextStyle(color: Colors.white38),
       ),
-      const SizedBox(height: 4),
-      const Text(
-        'JPG, PNG, MP4 · Bisa lebih dari 1 file',
-        style: TextStyle(color: kTextDim, fontSize: 11),
+      SizedBox(height: 4),
+      Text(
+        'Bisa pilih lebih dari 1 file',
+        style: TextStyle(color: Colors.white24, fontSize: 11),
       ),
     ],
   );
 
-  Widget _filledState(BuildContext context) => Column(
+  Widget _fileGrid() => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: files.map((f) {
-          final isVideo = [
-            'mp4',
-            'mov',
-            'avi',
-          ].contains(f.extension?.toLowerCase());
-          return Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: kNavy,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: kBorder),
-            ),
-            alignment: Alignment.center,
-            child: isVideo
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.play_circle_outline,
-                        color: kBlueBright,
-                        size: 28,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        f.extension?.toUpperCase() ?? '',
-                        style: const TextStyle(color: kTextDim, fontSize: 9),
-                      ),
-                    ],
-                  )
-                : Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.image_outlined,
-                        color: kBlueBright,
-                        size: 28,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        f.name.length > 10
-                            ? '${f.name.substring(0, 8)}…'
-                            : f.name,
-                        style: const TextStyle(color: kTextDim, fontSize: 9),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
-                  ),
-          );
-        }).toList(),
+        children: files.map((f) => _FileTile(file: f)).toList(),
       ),
       const SizedBox(height: 10),
-      Row(
-        children: [
-          const Icon(Icons.check_circle, color: kGreen, size: 14),
-          const SizedBox(width: 6),
-          Text(
-            '${files.length} file dipilih',
-            style: const TextStyle(
-              color: kGreen,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+      GestureDetector(
+        onTap: onTap,
+        child: const Text(
+          'Ganti file',
+          style: TextStyle(
+            color: kBlueBright,
+            fontSize: 12,
+            decoration: TextDecoration.underline,
           ),
-          const SizedBox(width: 12),
-          GestureDetector(
-            onTap: onTap,
-            child: const Text(
-              'Ganti file',
-              style: TextStyle(
-                color: kBlueBright,
-                fontSize: 12,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     ],
   );
 }
 
-// ── Jenis Dropdown ────────────────────────────────────────────────────────
+class _FileTile extends StatelessWidget {
+  final PlatformFile file;
+  const _FileTile({required this.file});
+
+  bool get _isVideo =>
+      ['mp4', 'mov', 'avi'].contains(file.extension?.toLowerCase());
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 80,
+    height: 80,
+    decoration: BoxDecoration(
+      color: kNavy,
+      borderRadius: BorderRadius.circular(8),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          _isVideo ? Icons.videocam_outlined : Icons.image_outlined,
+          color: Colors.white54,
+          size: 28,
+        ),
+        const SizedBox(height: 4),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            file.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white70, fontSize: 10),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _JenisDropdown — dropdown pilih jenis incident
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _JenisDropdown extends StatelessWidget {
   final String? value;
   final ValueChanged<String?> onChanged;
+
   const _JenisDropdown({required this.value, required this.onChanged});
 
   @override
   Widget build(BuildContext context) => DropdownButtonFormField<String>(
     value: value,
-    isDense: true,
-    dropdownColor: kTextDim,
+    dropdownColor: kNavy2,
     style: const TextStyle(color: Colors.white, fontSize: 14),
-    iconEnabledColor: kTextDim,
+    iconEnabledColor: Colors.white38,
     decoration: InputDecoration(
-      hint: const Text(
-        'Pilih jenis incident...',
-        style: TextStyle(color: Colors.white, fontSize: 13),
-      ),
+      hintText: 'Pilih jenis incident...',
+      hintStyle: const TextStyle(color: Colors.white38, fontSize: 14),
       filled: true,
       fillColor: kNavy2,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -438,23 +371,39 @@ class _JenisDropdown extends StatelessWidget {
   );
 }
 
-// ── Map Picker Button ─────────────────────────────────────────────────────
-class _MapPickerBtn extends StatelessWidget {
-  final VoidCallback onTap;
-  const _MapPickerBtn({required this.onTap});
+// ─────────────────────────────────────────────────────────────────────────────
+// _LocationRow — field alamat + tombol buka peta
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LocationRow extends StatelessWidget {
+  final TextEditingController controller;
+  final VoidCallback onPickMap;
+
+  const _LocationRow({required this.controller, required this.onPickMap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        color: kBlue,
-        borderRadius: BorderRadius.circular(12),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: AppTextField(
+          controller: controller,
+          hint: 'Ketuk ikon peta untuk pilih lokasi...',
+          readOnly: true,
+        ),
       ),
-      alignment: Alignment.center,
-      child: const Icon(Icons.map_outlined, color: Colors.white, size: 22),
-    ),
+      const SizedBox(width: 10),
+      GestureDetector(
+        onTap: onPickMap,
+        child: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: kBlue,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(Icons.map_outlined, color: Colors.white),
+        ),
+      ),
+    ],
   );
 }

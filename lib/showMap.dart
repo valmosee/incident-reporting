@@ -8,24 +8,26 @@ import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'global.dart' as global;
+import 'theme/app_theme.dart';
 
 class Showmap extends StatefulWidget {
-  const Showmap({super.key});
+  /// Jika diberikan, peta akan langsung terbuka di koordinat ini.
+  final LatLng? initialLatLng;
+
+  /// Jika true, peta hanya untuk melihat (tidak bisa pilih lokasi baru).
+  final bool viewOnly;
+
+  const Showmap({super.key, this.initialLatLng, this.viewOnly = false});
 
   @override
   State<Showmap> createState() => _ShowmapState();
 }
 
 class _ShowmapState extends State<Showmap> {
-  final TextEditingController searchC = TextEditingController();
-  final MapController mapController = MapController();
+  final _searchCtrl = TextEditingController();
+  final _mapCtrl = MapController();
 
-  // ── TIDAK ada shared http.Client ─────────────────────────────────────────
-  // Setiap request buat http.Client baru, langsung close setelah selesai.
-  // Ini menghindari "Client is already closed" karena flutter_map tile loader
-  // mempunyai lifecycle sendiri yang tidak berhubungan dengan client kita.
-
-  bool _disposed = false; // guard: stop semua setState setelah dispose
+  bool _disposed = false;
   bool _loadingLocation = false;
   bool _loadingAddress = false;
   List _results = [];
@@ -36,18 +38,16 @@ class _ShowmapState extends State<Showmap> {
   LatLng _markerPos = const LatLng(-7.2575, 112.7521);
   String _alamat = '';
 
-  // ── Helper: set state hanya kalau widget masih hidup ─────────────────────
+  // ── Logic: tidak diubah ──────────────────────────────────────────────────
   void _safeSetState(VoidCallback fn) {
     if (!_disposed && mounted) setState(fn);
   }
 
-  // ── Reverse geocode — buat & close client sendiri, ada timeout ───────────
   Future<String> _reverseGeocode(double lat, double lng) async {
     if (_disposed) return '$lat, $lng';
-
     try {
       if (kIsWeb) {
-        final client = http.Client(); // baru tiap panggilan
+        final client = http.Client();
         try {
           final url = Uri.parse(
             'https://nominatim.openstreetmap.org/reverse'
@@ -75,10 +75,9 @@ class _ShowmapState extends State<Showmap> {
             if (parts.isNotEmpty) return parts.join(', ');
           }
         } finally {
-          client.close(); // selalu close, bahkan saat exception/timeout
+          client.close();
         }
       } else {
-        // Mobile: package geocoding, tidak butuh http.Client
         final placemarks = await placemarkFromCoordinates(
           lat,
           lng,
@@ -95,15 +94,11 @@ class _ShowmapState extends State<Showmap> {
         }
       }
     } on TimeoutException {
-      // Timeout normal — fallback ke koordinat
-    } catch (_) {
-      // Semua error lain diabaikan — jangan freeze
-    }
-
+      // fallback ke koordinat
+    } catch (_) {}
     return '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}';
   }
 
-  // ── Pindahkan marker ke koordinat tertentu ────────────────────────────────
   Future<void> _moveToLatLng(
     double lat,
     double lng, {
@@ -115,11 +110,10 @@ class _ShowmapState extends State<Showmap> {
       _markerPos = LatLng(lat, lng);
       _alamat = alamatHint ?? _alamat;
       _results = [];
-      searchC.clear();
+      _searchCtrl.clear();
     });
-    mapController.move(LatLng(lat, lng), 17);
+    _mapCtrl.move(LatLng(lat, lng), 17);
 
-    // Kalau alamat sudah dari search result → langsung simpan, skip geocoding
     if (alamatHint != null) {
       global.latitude = lat;
       global.longitude = lng;
@@ -140,7 +134,6 @@ class _ShowmapState extends State<Showmap> {
     global.lokasi = alamat;
   }
 
-  // ── Handler drag peta: marker ikut tengah, geocode debounced ─────────────
   void _onMapEvent(MapEvent event) {
     if (event is! MapEventMoveEnd && event is! MapEventScrollWheelZoom) return;
     if (_disposed) return;
@@ -166,14 +159,12 @@ class _ShowmapState extends State<Showmap> {
     });
   }
 
-  // ── Search via Photon ─────────────────────────────────────────────────────
   Future<void> _searchLocation(String keyword) async {
     if (_disposed || keyword.isEmpty) {
       _safeSetState(() => _results = []);
       return;
     }
-
-    final client = http.Client(); // baru tiap pencarian
+    final client = http.Client();
     try {
       final url = Uri.parse(
         'https://photon.komoot.io/api/?q=${Uri.encodeComponent(keyword)}&limit=5',
@@ -181,15 +172,12 @@ class _ShowmapState extends State<Showmap> {
       final response = await client
           .get(url)
           .timeout(const Duration(seconds: 8));
-
       if (!_disposed && response.statusCode == 200 && mounted) {
         final data = jsonDecode(response.body);
         _safeSetState(() => _results = data['features']);
       }
     } on TimeoutException {
-      // Abaikan
     } catch (_) {
-      // Abaikan
     } finally {
       client.close();
     }
@@ -207,11 +195,9 @@ class _ShowmapState extends State<Showmap> {
     );
   }
 
-  // ── GPS ───────────────────────────────────────────────────────────────────
   Future<void> _getCurrentLocation() async {
     if (_disposed) return;
     _safeSetState(() => _loadingLocation = true);
-
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
@@ -257,7 +243,6 @@ class _ShowmapState extends State<Showmap> {
     }
   }
 
-  // ── Konfirmasi ────────────────────────────────────────────────────────────
   void _confirmLocation() {
     global.latitude = _markerPos.latitude;
     global.longitude = _markerPos.longitude;
@@ -276,89 +261,112 @@ class _ShowmapState extends State<Showmap> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _getCurrentLocation());
+    if (widget.initialLatLng != null) {
+      _markerPos = widget.initialLatLng!;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        _mapCtrl.move(_markerPos, 17);
+        _safeSetState(() => _loadingAddress = true);
+        final alamat = await _reverseGeocode(
+          _markerPos.latitude,
+          _markerPos.longitude,
+        );
+        _safeSetState(() {
+          _alamat = alamat;
+          _loadingAddress = false;
+        });
+      });
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _getCurrentLocation(),
+      );
+    }
   }
 
   @override
   void dispose() {
-    _disposed = true; // set dulu sebelum cancel timer
+    _disposed = true;
     _searchDebounce?.cancel();
     _dragDebounce?.cancel();
-    searchC.dispose();
-    // TIDAK ada _httpClient.close() di sini — semua client sudah di-close sendiri
+    _searchCtrl.dispose();
     super.dispose();
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
+  // ── Build ────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D1B2A),
+      backgroundColor: kNavy,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0D1B2A),
+        backgroundColor: kNavy,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Pilih Lokasi',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        title: Text(
+          widget.viewOnly ? 'Lokasi Laporan' : 'Pilih Lokasi',
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
-          _loadingLocation
-              ? const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 14),
-                  child: SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+          if (!widget.viewOnly)
+            _loadingLocation
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14),
+                    child: SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     ),
+                  )
+                : IconButton(
+                    icon: const Icon(Icons.my_location, color: Colors.white),
+                    tooltip: 'Gunakan lokasi GPS',
+                    onPressed: _getCurrentLocation,
                   ),
-                )
-              : IconButton(
-                  icon: const Icon(Icons.my_location, color: Colors.white),
-                  tooltip: 'Gunakan lokasi GPS',
-                  onPressed: _getCurrentLocation,
-                ),
         ],
       ),
       body: Column(
         children: [
-          // ── Search bar ────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: TextField(
-              controller: searchC,
-              onChanged: _onSearchChanged,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Cari lokasi...',
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.search, color: Colors.white54),
-                filled: true,
-                fillColor: const Color(0xFF1A2D42),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 12,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
+          // ── Search bar (hanya saat pick mode) ────────────────────────────
+          if (!widget.viewOnly) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: _onSearchChanged,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Cari lokasi...',
+                  hintStyle: const TextStyle(color: Colors.white38),
+                  prefixIcon: const Icon(Icons.search, color: Colors.white54),
+                  filled: true,
+                  fillColor: kNavy2,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 8),
+          ],
 
-          // ── Peta ─────────────────────────────────────────
+          // ── Peta ─────────────────────────────────────────────────────────
           Expanded(
             child: Stack(
               children: [
                 FlutterMap(
-                  mapController: mapController,
+                  mapController: _mapCtrl,
                   options: MapOptions(
                     initialCenter: _markerPos,
                     initialZoom: 17,
@@ -387,13 +395,14 @@ class _ShowmapState extends State<Showmap> {
                   ],
                 ),
 
-                // Crosshair tengah
-                const Center(
-                  child: Icon(Icons.add, color: Colors.black38, size: 20),
-                ),
+                // Crosshair (hanya saat pick mode)
+                if (!widget.viewOnly)
+                  const Center(
+                    child: Icon(Icons.add, color: Colors.black38, size: 20),
+                  ),
 
-                // ── Dropdown search results ───────────────────
-                if (_results.isNotEmpty)
+                // ── Search dropdown (hanya saat pick mode) ───────────────
+                if (!widget.viewOnly && _results.isNotEmpty)
                   Positioned(
                     top: 0,
                     left: 16,
@@ -424,7 +433,6 @@ class _ShowmapState extends State<Showmap> {
                               city,
                               country,
                             ].where((s) => s.isNotEmpty).join(', ');
-
                             return ListTile(
                               leading: const Icon(
                                 Icons.location_on,
@@ -441,110 +449,114 @@ class _ShowmapState extends State<Showmap> {
                     ),
                   ),
 
-                // ── Alamat + tombol konfirmasi ────────────────
+                // ── Alamat + tombol konfirmasi ───────────────────────────
                 Positioned(
                   bottom: 16,
                   left: 16,
                   right: 16,
                   child: Column(
                     children: [
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: _loadingAddress
-                            ? Container(
-                                key: const ValueKey('loading'),
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                                margin: const EdgeInsets.only(bottom: 10),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.65),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    SizedBox(width: 10),
-                                    Text(
-                                      'Mencari alamat...',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : _alamat.isNotEmpty
-                            ? Container(
-                                key: const ValueKey('address'),
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 10,
-                                ),
-                                margin: const EdgeInsets.only(bottom: 10),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withOpacity(0.65),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.location_on,
-                                      color: Colors.red,
-                                      size: 18,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Text(
-                                        _alamat,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : const SizedBox.shrink(key: ValueKey('empty')),
-                      ),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _loadingAddress ? null : _confirmLocation,
-                          icon: const Icon(Icons.check_circle_outline),
-                          label: const Text(
-                            'Pilih Lokasi Ini',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                      // AnimatedSwitcher(
+                      //   duration: const Duration(milliseconds: 200),
+                      //   child: _loadingAddress
+                      //       ? _AddressBox(
+                      //           key: const ValueKey('loading'),
+                      //           child: const Row(
+                      //             children: [
+                      //               SizedBox(
+                      //                 width: 14,
+                      //                 height: 14,
+                      //                 child: CircularProgressIndicator(
+                      //                   strokeWidth: 2,
+                      //                   color: Colors.white,
+                      //                 ),
+                      //               ),
+                      //               SizedBox(width: 10),
+                      //               Text(
+                      //                 'Mencari alamat...',
+                      //                 style: TextStyle(
+                      //                   color: Colors.white70,
+                      //                   fontSize: 13,
+                      //                 ),
+                      //               ),
+                      //             ],
+                      //           ),
+                      //         )
+                      //       : _alamat.isNotEmpty
+                      //       ? _AddressBox(
+                      //           key: const ValueKey('address'),
+                      //           child: Row(
+                      //             children: [
+                      //               const Icon(
+                      //                 Icons.location_on,
+                      //                 color: Colors.red,
+                      //                 size: 18,
+                      //               ),
+                      //               const SizedBox(width: 8),
+                      //               Expanded(
+                      //                 child: Text(
+                      //                   _alamat,
+                      //                   style: const TextStyle(
+                      //                     color: Colors.white,
+                      //                     fontSize: 13,
+                      //                   ),
+                      //                 ),
+                      //               ),
+                      //             ],
+                      //           ),
+                      //         )
+                      //       : const SizedBox.shrink(key: ValueKey('empty')),
+                      // ),
+                      if (widget.viewOnly)
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
+                            label: const Text(
+                              'Tutup',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: kNavy2,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: const BorderSide(color: kBorder),
+                              ),
                             ),
                           ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1565C0),
-                            disabledBackgroundColor: const Color(
-                              0xFF1565C0,
-                            ).withOpacity(0.5),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        )
+                      else
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: _loadingAddress
+                                ? null
+                                : _confirmLocation,
+                            icon: const Icon(Icons.check_circle_outline),
+                            label: const Text(
+                              'Pilih Lokasi Ini',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: kBlue,
+                              disabledBackgroundColor: kBlue.withOpacity(0.5),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
-                      ),
                     ],
                   ),
                 ),
@@ -555,4 +567,24 @@ class _ShowmapState extends State<Showmap> {
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _AddressBox — kotak latar gelap untuk menampilkan alamat
+// ─────────────────────────────────────────────────────────────────────────────
+class _AddressBox extends StatelessWidget {
+  final Widget child;
+  const _AddressBox({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+    margin: const EdgeInsets.only(bottom: 10),
+    decoration: BoxDecoration(
+      color: Colors.black.withOpacity(0.65),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: child,
+  );
 }
