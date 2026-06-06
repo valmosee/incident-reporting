@@ -1,4 +1,4 @@
-# Incident Reporting & Smart Dashboard
+# Incident Reporting & Smart Dashboard (On-Going Project)
 
 A Flutter mobile application for reporting public incidents (damaged roads, floods, etc.) with real-time status tracking and an admin dashboard.
 
